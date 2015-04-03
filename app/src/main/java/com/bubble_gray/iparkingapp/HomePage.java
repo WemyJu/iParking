@@ -1,8 +1,12 @@
 package com.bubble_gray.iparkingapp;
 
+import android.app.AlertDialog;
 import android.app.Fragment;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -36,56 +40,78 @@ public class HomePage extends ActionBarActivity {
         recordBtn=(ImageButton)findViewById(R.id.home_record);
         searchBtn=(ImageButton)findViewById(R.id.home_search);
         helpBtn=(ImageButton)findViewById(R.id.home_help);
-        //-------set button event---------
-
-        recordBtn.setOnClickListener(new View.OnClickListener()
-                                     {
-                                         @Override
-                                         public void onClick(View v)
-                                         {
-                                             Intent recordIntent=new Intent(HomePage.this,Record.class);
-                                             Bundle bundle = new Bundle();
-                                             bundle.putInt("ID",id);
-                                             recordIntent.putExtras(bundle);
-                                             startActivity(recordIntent);
-                                         }
-
-                                     }
-        );
-
-        searchBtn.setOnClickListener(new View.OnClickListener()
-                                     {
-                                         @Override
-                                         public void onClick(View v)
-                                         {
-                                             Intent searchIntent=new Intent(HomePage.this,Search.class);
-                                             Bundle bundle = new Bundle();
-                                             bundle.putInt("ID",id);
-                                             searchIntent.putExtras(bundle); //�N�ѼƩ�J
-                                             startActivity(searchIntent);
-                                         }
-
-                                     }
-        );
-        myDB=new DBAdapter(this);
-        helpBtn.setOnClickListener(new View.OnClickListener(){
-                                       @Override
-                                       public void onClick(View v)
-                                       {
-                                           myDB.open();
-                                           myDB.deleteDB();
-                                           myDB.close();
-
-                                       }
-
-                                   }
-        );
-
-        Register register=new Register();
-        registerThread=new Thread(register);
-        registerThread.start();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        ConnectivityManager conMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        /* already connected to Internet */
+        if ( conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.CONNECTED
+                || conMgr.getNetworkInfo(1).getState() == NetworkInfo.State.CONNECTED ) {
+            //-------set button event---------
+            recordBtn.setOnClickListener(new View.OnClickListener()
+                                         {
+                                             @Override
+                                             public void onClick(View v)
+                                             {
+                                                 Intent recordIntent=new Intent(HomePage.this,Record.class);
+                                                 Bundle bundle = new Bundle();
+                                                 bundle.putInt("ID",id);
+                                                 recordIntent.putExtras(bundle);
+                                                 startActivity(recordIntent);
+                                             }
+
+                                         }
+            );
+
+            searchBtn.setOnClickListener(new View.OnClickListener()
+                                         {
+                                             @Override
+                                             public void onClick(View v)
+                                             {
+                                                 Intent searchIntent=new Intent(HomePage.this, Search.class);
+                                                 Bundle bundle = new Bundle();
+                                                 bundle.putInt("ID",id);
+                                                 searchIntent.putExtras(bundle); //�N�ѼƩ�J
+                                                 startActivity(searchIntent);
+                                             }
+
+                                         }
+            );
+            myDB=new DBAdapter(this);
+            helpBtn.setOnClickListener(new View.OnClickListener(){
+                                           @Override
+                                           public void onClick(View v)
+                                           {
+                                               Intent instructionPage = new Intent(HomePage.this, Instruction.class);
+                                               startActivity(instructionPage);
+                                               /*myDB.open();
+                                               myDB.deleteDB();
+                                               myDB.close();
+                                               */
+                                           }
+
+                                       }
+            );
+
+            Register register=new Register();
+            registerThread=new Thread(register);
+            registerThread.start();
+        }
+        /* not connected to Internet */
+        else if ( conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.DISCONNECTED
+                || conMgr.getNetworkInfo(1).getState() == NetworkInfo.State.DISCONNECTED) {
+            AlertDialog.Builder bdr = new AlertDialog.Builder(this);
+            bdr.setMessage("Please connect to Internet.")
+                    .setTitle("Need setting")
+                    .setIcon(android.R.drawable.ic_menu_info_details)
+                    .setCancelable(true)
+                    .setPositiveButton("Confirm", null)
+                    .show();
+        }
+    }
 
     public class Register implements Runnable
     {

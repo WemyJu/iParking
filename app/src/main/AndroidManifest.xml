@@ -4,17 +4,19 @@
 
     <!-- Camara -->
     <uses-permission android:name="android.permission.CAMERA" />
+
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />
+
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <!-- GPS -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Internet Location -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- DDMS -->
-    <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION" />
 
     <!-- WIFI權限 -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -45,6 +47,10 @@
         <activity
             android:name=".Search"
             android:label="@string/title_activity_search" >
+        </activity>
+        <activity
+            android:name=".Instruction"
+            android:label="@string/title_activity_instruction" >
         </activity>
     </application>
 

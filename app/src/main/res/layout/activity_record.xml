@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/record_back" >
+    <TableLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:stretchColumns="1">
+
+        <TableRow android:gravity="center">
+
+            <TextView
+                android:id="@+id/search_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="   "
+                android:textSize="65sp"
+                />
+
+        </TableRow>
+        <TableRow android:gravity="center">
+
+            <SurfaceView
+                android:id="@+id/surfaceView1"
+                android:layout_width="300dp"
+                android:layout_height="400dp" />
+        </TableRow>
+        <TableRow android:gravity="center">
+            <Button
+                android:text="停止錄影"
+                android:id="@+id/stop_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+        </TableRow>
+        <TableRow android:gravity="center">
+            <TextView
+                android:id="@+id/now_gps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="座標：123 456 "
+                android:textSize="20sp"
+                />
+        </TableRow>
+    </TableLayout>
+</LinearLayout>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/search_back" >
+    <TableLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:stretchColumns="1">
+
+        <TableRow>
+
+            <TextView
+                android:id="@+id/search_result"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="   "
+                android:textSize="88sp"
+                />
+
+        </TableRow>
+        <TableRow android:gravity="center">
+
+            <TextView
+                android:id="@+id/search_result_Text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="\n剩餘  2  位\n\n"
+                android:textSize="44sp"
+                />
+
+        </TableRow>
+        <TableRow android:gravity="center">
+
+            <ImageButton
+                android:id="@+id/search_gohome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/search_gohome" />
+
+        </TableRow>
+        <TableRow android:gravity="center">
+            <ImageButton
+                android:id="@+id/search_refresh"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/search_refresh" />
+        </TableRow>
+
+
+
+    </TableLayout>
+
+
+
+
+
+
+</LinearLayout>

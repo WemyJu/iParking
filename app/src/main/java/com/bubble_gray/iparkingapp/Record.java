@@ -1,43 +1,60 @@
 package com.bubble_gray.iparkingapp;
 
+import android.app.Activity;
 import android.app.Fragment;
+import android.content.ClipData;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.graphics.PixelFormat;
+import android.hardware.Camera;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationListener;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.net.ContentHandler;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
-public class Record extends ActionBarActivity implements LocationListener{
+public class Record extends ActionBarActivity implements LocationListener, SurfaceHolder.Callback{
 
     //=========variable============
     //--------debug---------
@@ -60,57 +77,223 @@ public class Record extends ActionBarActivity implements LocationListener{
     MediaRecorder recorder;
     android.hardware.Camera myCamera;
     android.hardware.Camera.Parameters para;
-    //-------be searched------
-    BeSearched beSearched;
-    Socket searchedSocket;
     //----UI & control-------
     SurfaceView cameraView;
     Thread recThread;
     Thread gpsThread;
-    Thread searchedThread;
+    //Thread searchedThread;
+
+    TextView testView;
+
+    Camera camera;
+    SurfaceView surfaceView;
+    SurfaceHolder surfaceHolder;
+
+    private final String tag = "VideoServer";
+
+    Button start, stop;
+    MediaRecorder mediaRecorder;
+
+
+
 
     @Override
-    protected void onCreate(Bundle savedInstanceState)
-    {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.v(TAG, "onCreate");
         //----choose UI-----
         setContentView(R.layout.activity_record);
         Intent intent = this.getIntent();
         Bundle bundle = intent.getExtras();//��oBundle
-        id=bundle.getInt("ID"); 			//��XBundle���e
+        id = bundle.getInt("ID");            //��XBundle���e
         //----Connect object and UI-----
-        stopRec=(Button)findViewById(R.id.stop_btn);
-        gpsTv=(TextView)findViewById(R.id.now_gps);
-        cameraView=(SurfaceView)findViewById(R.id.surfaceView1);
+        //stopRec = (Button) findViewById(R.id.stop_btn);
+        gpsTv = (TextView) findViewById(R.id.now_gps);
+        cameraView = (SurfaceView) findViewById(R.id.surfaceView1);
 
         //----new object for variable-----
         this.lm = (LocationManager) (this.getSystemService(Context.LOCATION_SERVICE));
-        if(lm.isProviderEnabled(LocationManager.GPS_PROVIDER) || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER))
-        {
-            String provider=this.lm.getBestProvider(new Criteria(), true);
+        if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER) || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            String provider = this.lm.getBestProvider(new Criteria(), true);
             this.lm.getLastKnownLocation(/*provider*/LocationManager.GPS_PROVIDER);
             lm.requestLocationUpdates(provider, 1000, 0, (LocationListener) this);
         }
-        GpsHr=new Handler();
-        ErrHr=new ErrHandler();
-        VideoHr=new Handler();
-        dateFormat=new SimpleDateFormat("yyyyMMddHHmmss");
+
+        GpsHr = new Handler();
+        ErrHr = new ErrHandler();
+        VideoHr = new Handler();
+        dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
         //----button event-----
-        stopRec.setOnClickListener(stopRecLis);
+//        stopRec.setOnClickListener(stopRecLis);
 
         //----creat thread object-----
-        gpsCollector=new GPSCollector(lm);
+        gpsCollector = new GPSCollector(lm);
         gpsThread = new Thread(gpsCollector);
-        cameraRecorder=new CamaraRecorder();
+        cameraRecorder = new CamaraRecorder();
         recThread = new Thread(cameraRecorder);
-        beSearched=new BeSearched();
-        searchedThread=new Thread(beSearched);
+
         //-----start thread------
-        gpsThread.start();
-        recThread.start();
-        searchedThread.start();
+        //gpsThread.start();
+        //recThread.start();
+
+        start = (Button)findViewById(R.id.start_btn);
+        start.setOnClickListener(new Button.OnClickListener()
+        {
+            public void onClick(View arg0) {
+                start_camera();
+            }
+        });
+        stop = (Button)findViewById(R.id.stop_btn);
+        stop.setOnClickListener(new Button.OnClickListener()
+        {
+            public void onClick(View view) {
+                stop_camera();
+            }
+        });
+
+        surfaceView = (SurfaceView)findViewById(R.id.surfaceView1);
+        surfaceHolder = surfaceView.getHolder();
+        surfaceHolder.addCallback(this);
+        surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
     }
+
+
+    private String createFilePath()
+    {
+        Date current = new Date();
+        String pathStr="/storage/sdcard0/project/Car"+dateFormat.format(current)+".mp4";
+        fileName=dateFormat.format(current);
+        return pathStr;
+
+    }
+
+
+    private void start_camera()
+    {
+        try{
+            camera = Camera.open();
+        }catch(RuntimeException e){
+            Log.e(tag, "init_camera: " + e);
+            return;
+        }
+        Camera.Parameters mParameters = camera.getParameters();
+        Camera.Size bestSize = null;
+
+        List<Camera.Size> sizeList = camera.getParameters().getSupportedPreviewSizes();
+        bestSize = sizeList.get(0);
+
+        for(int i = 1; i < sizeList.size(); i++){
+            if((sizeList.get(i).width * sizeList.get(i).height) > (bestSize.width * bestSize.height)){
+                bestSize = sizeList.get(i);
+            }
+        }
+
+        mParameters.setPreviewSize(bestSize.width, bestSize.height);
+        //mParameters.setPreviewSize(176, 144);
+        Log.v("size: ", bestSize.width+", "+bestSize.height);
+        mParameters.setPreviewFrameRate(20);
+        camera.setParameters(mParameters);
+
+        try {
+            camera.setPreviewDisplay(surfaceHolder);
+            camera.startPreview();
+        } catch (Exception e) {
+            Log.e(tag, "init_camera: " + e);
+            return;
+        }
+
+        String path = createFilePath();
+
+        camera.unlock();
+        mediaRecorder = new MediaRecorder();
+        mediaRecorder.setCamera(camera);
+        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mediaRecorder.setOutputFile(path);
+        mediaRecorder.setPreviewDisplay(surfaceHolder.getSurface());
+        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.DEFAULT);
+        mediaRecorder.setVideoSize(bestSize.width, bestSize.height);
+        //mediaRecorder.setVideoSize(176, 144);
+        try
+        {
+            mediaRecorder.prepare();
+            mediaRecorder.start();
+        }
+        catch (IOException e)
+        {}
+
+
+
+
+        /*
+        recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        recorder.setOutputFile(path);
+        recorder.setOrientationHint(0);
+
+        recorder.setVideoSize(1920,1080);	//1080p
+        recorder.setVideoEncodingBitRate(1000*1024);	//8000 kbps
+        // �]�w�w���
+        recorder.setPreviewDisplay(cameraView.getHolder().getSurface());
+        Log.v("camera", "pass cameraView");
+
+        try
+        {
+            recorder.prepare();
+            recorder.start();
+        }
+        catch (IOException e)
+        {
+            msg.what=6;
+            errMsg=e.getLocalizedMessage();
+            ErrHr.sendMessage(msg);
+        }*/
+
+
+
+    }
+
+    private void stop_camera()
+    {
+
+        mediaRecorder.stop();
+        mediaRecorder.reset();
+        mediaRecorder.release();
+        try {
+            camera.reconnect();
+        } catch (IOException e) {
+// TODO Auto-generated catch block
+            Log.e(tag, "stop_camera: " + e);
+        }
+
+        camera.stopPreview();
+        camera.release();
+    }
+
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        // TODO Auto-generated method stub
+        start_camera();
+    }
+
+    public void surfaceCreated(SurfaceHolder holder) {
+        // TODO Auto-generated method stub
+    }
+
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        // TODO Auto-generated method stub
+        stop_camera();
+    }
+
+
+
+
+
+
+
+
+
+
+
 
     //=====stop recording and return=======
     private View.OnClickListener stopRecLis=new View.OnClickListener()
@@ -119,11 +302,12 @@ public class Record extends ActionBarActivity implements LocationListener{
         public void onClick(View v)
         {
             Log.v(TAG,"onClick");
-            cameraRecorder.stopCamera();
-            gpsCollector.sendData("over#");
+            recorder.stop();
+            //cameraRecorder.stopCamera();
+           // gpsCollector.sendData("over#");
             recThread.interrupt();
             gpsThread.interrupt();
-            onPause();
+            //onPause();
         }
     };
     //=====update gps & camera UI=======
@@ -135,14 +319,14 @@ public class Record extends ActionBarActivity implements LocationListener{
         }
 
     };
-    private Runnable searchUI=new Runnable()
+    /*private Runnable searchUI=new Runnable()
     {
         public void run()
         {
             gpsTv.setText(beSearched.getInput());
         }
 
-    };
+    };*/
     private Runnable recorderUI=new Runnable()
     {
         public void run()
@@ -229,18 +413,16 @@ public class Record extends ActionBarActivity implements LocationListener{
     //=====gps=======
     class GPSCollector implements Runnable
     {
-
         private LocationManager lm;
         private String gpsLoc;
-        byte[] strb = new byte[200];
+        //byte[] strb = new byte[200];
         String str;
-        OutputStream out;
-        InputStream in;
-        //!!!!!!!!!
+        //OutputStream out;
+        //InputStream in;
         public GPSCollector(LocationManager lm)
         {
             this.lm=lm;
-            this.gpsLoc="�y�СG0,0";
+            this.gpsLoc="not get";
             isLocationChange=true;
             showMsg(1000);
 
@@ -262,7 +444,7 @@ public class Record extends ActionBarActivity implements LocationListener{
 
             //=====1.Create a socket(socket())=====//
             //=====2.connect to serve(connect())=====//
-            try
+           /* try
             {
                 gpsSocket=new Socket("140.116.246.200",3000+id);
                 out=gpsSocket.getOutputStream();
@@ -271,7 +453,7 @@ public class Record extends ActionBarActivity implements LocationListener{
             catch (UnknownHostException e)
             {	showMsg(1);}
             catch (IOException e)
-            {	showMsg(2);	}
+            {	showMsg(2);	}*/
             //=====3.send and receive data(read() write())=====//
             // [gps]#[data]#
 
@@ -280,36 +462,28 @@ public class Record extends ActionBarActivity implements LocationListener{
                 //gps
                 if(isLocationChange)
                 {
-					/*String provider=this.lm.getBestProvider(new Criteria(), true);
-					if (provider == null)
-					{
-						continue;
-					}
-					else
-					{*/
                     Log.v(TAG,"gps send!!!!");
                     //----get and send new gps and date----
-                    String bestProvider = LocationManager.GPS_PROVIDER;
-                    Criteria criteria = new Criteria();	//��T���Ѫ̿��з�
-                    bestProvider = lm.getBestProvider(criteria, true);	//��ܺ�ǫ׳̰������Ѫ�
-                    Location location = this.lm.getLastKnownLocation(/*providerLocationManager.GPS_PROVIDER*/bestProvider);
-                    gpsLoc=location.getLongitude() + ","+ location.getLatitude();
+                    String bestProvider = lm.getBestProvider(new Criteria(), true);	//��ܺ�ǫ׳̰������Ѫ�
+                    Location location = this.lm.getLastKnownLocation(bestProvider);
+                    gpsLoc=String.format("%.6f,%.6f", location.getLongitude(), location.getLatitude());
+                    Log.v("GPS: ", gpsLoc);
                     GpsHr.post(refreshUI);
                     Date current = new Date();
-                    str="gps#"+gpsLoc+"#"+dateFormat.format(current)+"#"+fileName+"#";
-                    sendData(str);
+                   // str="gps#"+gpsLoc+"#"+dateFormat.format(current)+"#"+fileName+"#";
+                   // sendData(str);
                     isLocationChange=false;
                     //----wait 5 second----
-                    try {	Thread.sleep(3000);	}
+                    /*try {	Thread.sleep(3000);	}
                     catch (InterruptedException e)
-                    {	showMsg(4);		}
+                    {	showMsg(4);		}*/
 
                     //}
                 }
             }while(true);
         }
 
-        private void sendData(String s)
+       /* private void sendData(String s)
         {
             Log.v(TAG,"send "+s);
             Arrays.fill(strb, (byte) 0);
@@ -322,9 +496,9 @@ public class Record extends ActionBarActivity implements LocationListener{
             {
                 showMsg(3);
             }
-        }
+        }*/
 
-        private String readData()
+       /* private String readData()
         {
             String s = "";
             String[] splits = null;
@@ -342,9 +516,7 @@ public class Record extends ActionBarActivity implements LocationListener{
                 showMsg(3);
             }
             return splits[0];
-        }
-
-
+        }*/
     }
 
     public void onLocationChanged(Location location)
@@ -385,7 +557,7 @@ public class Record extends ActionBarActivity implements LocationListener{
             recorder.setVideoEncodingBitRate(1000*1024);	//8000 kbps
             // �]�w�w���
             recorder.setPreviewDisplay(cameraView.getHolder().getSurface());
-
+            Log.v("camera", "pass cameraView");
 
             try
             {
@@ -429,6 +601,8 @@ public class Record extends ActionBarActivity implements LocationListener{
 
 
     }
+
+    /*
     //======be searched==========
     class BeSearched implements Runnable
     {
@@ -479,10 +653,12 @@ public class Record extends ActionBarActivity implements LocationListener{
                 }
             }
         }
+
         public String getInput()
         {
             return str;
         }
+
         public void searchVideo(String fn,String secStr) throws InterruptedException
         {
             Log.v(TAG,fn+" "+secStr);
@@ -543,26 +719,27 @@ public class Record extends ActionBarActivity implements LocationListener{
 			}
 			outSearch.write(pic,0,fileSize);
 			outSearch.flush();*/
-            inputStream.close();
-            Log.v(TAG,"send over");
-        }
-        public String getLatestFile()
-        {
-            String[] filenames;
-            String latest="";
-            File dir=new File("storage/emulated/0/DCIM/100MEDIA");
-            filenames=dir.list();
-            for(int i=filenames.length-1;i>=0;--i)
-            {
-                if(filenames[i].substring(0, 3).equals("Car"))
-                {
-                    Log.v(TAG,filenames[i]);
-                    latest=filenames[i];
-                    break;
-                }
-            }
-            return "storage/emulated/0/DCIM/100MEDIA/"+latest;
-        }
+
+            ///inputStream.close();
+            ///Log.v(TAG,"send over");
+       // }
+       /// public String getLatestFile()
+       /// {
+          ///  String[] filenames;
+           /// String latest="";
+           /// File dir=new File("storage/emulated/0/DCIM/100MEDIA");
+           /// filenames=dir.list();
+          ////  for(int i=filenames.length-1;i>=0;--i)
+          ///  {
+         ///       if(filenames[i].substring(0, 3).equals("Car"))
+            ///    {
+               ///     Log.v(TAG,filenames[i]);
+                  ///  latest=filenames[i];
+                  ///  break;
+     ///           }
+        ///    }
+    ///        return "storage/emulated/0/DCIM/100MEDIA/"+latest;
+     ///   }
 		/*
 		class DataSet implements java.io.Serializable
 		{
@@ -577,8 +754,9 @@ public class Record extends ActionBarActivity implements LocationListener{
 			{
 				bitmap=img;
 			}
-		}*/
-    }
+		}
+    }*/
+
     //======Life cycle======
     @Override
     protected void onPause()
@@ -587,6 +765,7 @@ public class Record extends ActionBarActivity implements LocationListener{
         Log.v(TAG,"onPause");
         onStop();
     }
+
     @Override
     protected void onStop()
     {
@@ -598,7 +777,7 @@ public class Record extends ActionBarActivity implements LocationListener{
             recorder.release();
         }
 
-        byte strb[]=new byte[200];
+  /*      byte strb[]=new byte[200];
         String s="over#";
         try {
             Arrays.fill(strb, (byte)0);
@@ -610,7 +789,7 @@ public class Record extends ActionBarActivity implements LocationListener{
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
-        }
+        }*/
 
         android.os.Process.killProcess(android.os.Process.myPid());
         onDestroy();

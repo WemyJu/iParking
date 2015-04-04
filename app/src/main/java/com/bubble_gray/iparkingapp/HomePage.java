@@ -96,9 +96,9 @@ public class HomePage extends ActionBarActivity {
                                        }
             );
 
-            Register register=new Register();
-            registerThread=new Thread(register);
-            registerThread.start();
+          //  Register register=new Register();
+          //  registerThread=new Thread(register);
+          //  registerThread.start();
         }
         /* not connected to Internet */
         else if ( conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.DISCONNECTED

@@ -10,19 +10,6 @@
         android:layout_height="fill_parent"
         android:stretchColumns="1">
 
-        <TableRow android:gravity="center"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1">
-
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:id="@+id/imageView"
-                android:background="@drawable/record_mode"
-                android:layout_gravity="center_horizontal" />
-        </TableRow>
-
         <LinearLayout
             android:orientation="horizontal"
             android:layout_width="match_parent"
@@ -32,7 +19,7 @@
             <SurfaceView
                 android:id="@+id/surfaceView1"
                 android:layout_width="320px"
-                android:layout_height="240px"
+                android:layout_height="240dp"
                 android:layout_weight="1" />
 
             <LinearLayout

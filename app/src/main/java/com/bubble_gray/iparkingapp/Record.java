@@ -142,9 +142,13 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         start.setOnClickListener(new Button.OnClickListener()
         {
             public void onClick(View view) {
-                //start_camera();
                 try {
-                    camera.takePicture(null, null, jpegCallback);
+                    camera.autoFocus(new Camera.AutoFocusCallback(){
+                        @Override
+                        public void onAutoFocus(boolean success, Camera camera){
+                            camera.takePicture(null, null, jpegCallback);
+                        }
+                    });
                 }catch (RuntimeException re){
                     Log.e("takePic", "re:"+re);
                 }
@@ -200,7 +204,7 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         mParameters.setPreviewSize(bestSize.width, bestSize.height);
         //mParameters.setPreviewSize(176, 144);
         mParameters.setPreviewFrameRate(20);
-        //mParameters.setFocusMode("auto");
+        mParameters.setFocusMode("auto");
         mParameters.setPictureFormat(PixelFormat.JPEG);
         camera.setParameters(mParameters);
 

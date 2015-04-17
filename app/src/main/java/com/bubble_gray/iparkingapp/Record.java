@@ -23,6 +23,7 @@ import android.media.MediaMetadataRetriever;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.net.wifi.p2p.WifiP2pManager;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
@@ -158,6 +159,7 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         stop.setOnClickListener(new Button.OnClickListener()
         {
             public void onClick(View view) {
+                recThread.interrupt();
                 stop_camera();
             }
         });
@@ -178,11 +180,17 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
     }
 
 
-    private String createFilePath()
-    {
+    private String createFilePath(){
         Date current = new Date();
-        String pathStr="/storage/sdcard0/project/Car"+dateFormat.format(current)+".jpg";
-        fileName=dateFormat.format(current);
+        fileName = dateFormat.format(current);
+
+        String pathStr = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM) + File.separator + "iParking/";
+        File dirFile = new File(pathStr);
+        if(!dirFile.exists()) {
+            dirFile.mkdir();
+        }
+        pathStr += fileName + ".jpg";
+
         return pathStr;
     }
 
@@ -202,10 +210,11 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         }
 
         mParameters.setPreviewSize(bestSize.width, bestSize.height);
-        //mParameters.setPreviewSize(176, 144);
         mParameters.setPreviewFrameRate(20);
         mParameters.setFocusMode("auto");
         mParameters.setPictureFormat(PixelFormat.JPEG);
+        //mParameters.set("orientation", "landscape");
+        //mParameters.set("rotation", 90);
         camera.setParameters(mParameters);
 
         try {
@@ -216,11 +225,7 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
             return;
         }
 
-        //String path = createFilePath();
-
-        //camera.unlock();
-        //camera.takePicture(null, null, null, TakeJpeg);
-        //recThread.start();
+        recThread.start();
 /*
 
         //===== for record a video=========
@@ -270,10 +275,12 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
 
     private void stop_camera()
     {
-        camera.stopPreview();
-        camera.lock();
-        camera.release();
-        camera = null;
+        if(camera!=null) {
+            camera.stopPreview();
+            camera.lock();
+            camera.release();
+            camera = null;
+        }
     }
 
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
@@ -305,7 +312,7 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
             Log.v(TAG,"onClick");
             recorder.stop();
             //cameraRecorder.stopCamera();
-           // gpsCollector.sendData("over#");
+            // gpsCollector.sendData("over#");
             recThread.interrupt();
             gpsThread.interrupt();
             //onPause();
@@ -492,6 +499,7 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         isLocationChange = true;
         String gpsLoc = String.format("%.6f,%.6f", location.getLongitude(), location.getLatitude());
         Log.v("GPS: ", gpsLoc);
+        gpsTv.setText("(" +  location.getLongitude() + ", " + location.getLatitude() + ")");
         String addr = "";
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
         try{
@@ -514,22 +522,19 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         String path;
         public void run()
         {
-            Log.v(TAG,"Camera run");
-            //path=createFilePath();
-            //GpsHr.post(recorderUI);
-            isFocus=false;
-            //camera.autoFocus(afcb);
-            //camera.takePicture(shutterCallback, TakeRAW, PostView, TakeJpeg);
 
-            myCamera=android.hardware.Camera.open();
-            myCamera.stopPreview();
-            myCamera.setDisplayOrientation(90);
-            para=myCamera.getParameters();
-            para.setFocusMode("auto");
-            myCamera.setParameters(para);
-            myCamera.startPreview();
-            //myCamera.autoFocus(focus);
-            //myCamera.unlock();
+            while(camera!=null){
+                try {
+                    camera.autoFocus(new Camera.AutoFocusCallback(){
+                        @Override
+                        public void onAutoFocus(boolean success, Camera camera){
+                            camera.takePicture(null, null, jpegCallback);
+                        }
+                    });
+                }catch (RuntimeException re){
+                    Log.e("takePic", "re:"+re);
+                }
+            }
 /*
             recorder=new MediaRecorder();
             recorder.setCamera(myCamera);
@@ -557,18 +562,6 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
                 ErrHr.sendMessage(msg);
             }*/
         }
-
-        private String createFilePath()
-        {
-            Date current = new Date();
-            String pathStr="/storage/emulated/0/DCIM/100MEDIA/Car"+dateFormat.format(current)+".mp4";
-            fileName=dateFormat.format(current);
-            return pathStr;
-
-        }
-
-
-
     }
 
     /*
@@ -737,6 +730,7 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
     @Override
     protected void onPause()
     {
+        recThread.interrupt();
         super.onPause();
         stop_camera();
     }
@@ -822,28 +816,21 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
 
                     FileOutputStream fop;
                     try {
-                        Log.e("in open fike", "before everything");
-                        Date current = new Date();
-                        String pathStr = "/storage/sdcard0/DCIM/" + dateFormat.format(current) + ".jpg";
-                        Log.e("Pic path:", pathStr);
-                        fop = new FileOutputStream(pathStr);
-                        //實例化FileOutputStream，參數是生成路徑
+                        String pathStr = createFilePath();
+                        fop = new FileOutputStream(pathStr); //實例化FileOutputStream，參數是生成路徑
                         bmp.compress(Bitmap.CompressFormat.JPEG, 100, fop);
                         //壓缩bitmap寫進outputStream 參數：輸出格式  輸出質量  目標OutputStream
                         //格式可以為jpg,png,jpg不能存儲透明
+
                         fop.flush();
                         fop.close();
                     } catch (FileNotFoundException e) {
-
                         e.printStackTrace();
                         System.out.println("FileNotFoundException");
-
                     } catch (IOException e) {
-
                         e.printStackTrace();
                         System.out.println("IOException");
                     }
-
                     camera.startPreview(); //需要手動重新startPreview，否則停在拍下的瞬間
                 }
     };

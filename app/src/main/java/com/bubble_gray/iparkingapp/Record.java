@@ -1,6 +1,7 @@
 package com.bubble_gray.iparkingapp;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Fragment;
 import android.content.ClipData;
 import android.content.ContentResolver;
@@ -170,12 +171,22 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
         lm = (LocationManager)getSystemService(LOCATION_SERVICE);
-        String bestProvider = lm.getBestProvider(new Criteria(), true);	//��ܺ�ǫ׳̰������Ѫ�
-        if(!bestProvider.isEmpty()){
-            lm.requestLocationUpdates(bestProvider, 100, 0, this);
+        if(!lm.isProviderEnabled(LocationManager.GPS_PROVIDER)){
+            AlertDialog.Builder bdr = new AlertDialog.Builder(this);
+            bdr.setMessage("Please open GPS.")
+                    .setTitle("Need setting")
+                    .setIcon(android.R.drawable.ic_menu_info_details)
+                    .setCancelable(true)
+                    .setPositiveButton("Confirm", null)
+                    .show();
         }
-        else{
-            Log.v("can't not get location", "");
+        else {
+            String bestProvider = lm.getBestProvider(new Criteria(), true);    //��ܺ�ǫ׳̰������Ѫ�
+            if (!bestProvider.isEmpty()) {
+                lm.requestLocationUpdates(bestProvider, 100, 0, this);
+            } else {
+                Log.v("can't not get location", "");
+            }
         }
     }
 

@@ -48,7 +48,7 @@ public class HomePage extends ActionBarActivity {
 
         ConnectivityManager conMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
         /* already connected to Internet */
-        if ( conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.CONNECTED
+        if (conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.CONNECTED
                 || conMgr.getNetworkInfo(1).getState() == NetworkInfo.State.CONNECTED ) {
             //-------set button event---------
             recordBtn.setOnClickListener(new View.OnClickListener()

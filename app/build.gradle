@@ -11,6 +11,12 @@ android {
         versionCode 1
         versionName "1.0"
     }
+
+    dependencies {
+        compile fileTree(dir: 'libs', include: '*.jar')
+        compile project(':UAC.Volley')
+    }
+
     buildTypes {
         release {
             minifyEnabled false

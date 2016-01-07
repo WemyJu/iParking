@@ -1,220 +1,122 @@
 package com.bubble_gray.iparkingapp;
 
-import android.app.Fragment;
+import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
-import android.os.Handler;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationManager;
+import android.os.AsyncTask;
+import android.provider.Settings;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ImageButton;
-import android.widget.TextView;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+import android.widget.Toast;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.Arrays;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.VolleyLog;
+
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+
+import HttpRequest.AppController;
+import HttpRequest.PostParameterJsonObjectRequest;
 
 
-public class Search extends ActionBarActivity {
+public class Search extends ActionBarActivity{
 
     private final static String TAG="HelloWorld";
     private ImageButton gohomeBtn,refreshBtn;
-    private TextView resultText;
-    private Thread askThread;
-    private int id;
-    private Handler UIHr;
-    private AskServer askServer;
+
+    private ArrayList<HashMap<String, String>> list;
+    private ProgressDialog alertProgress;
+    private ListView listview;
+    private SimpleAdapter adapter;
+
+    private LocationManager lm;
+
+    private String GPSlat, GPSlng;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
-        //------get user id-----------
-        Intent intent = this.getIntent();
-        Bundle bundle = intent.getExtras();//��oBundle
-        id=bundle.getInt("ID"); 			//��XBundle���e
+
         //-------connect button---------
         gohomeBtn=(ImageButton)findViewById(R.id.search_gohome);
         refreshBtn=(ImageButton)findViewById(R.id.search_refresh);
-        resultText=(TextView)findViewById(R.id.search_result_Text);
-
-        //-------connect server---------
-        askServer=new AskServer();
-        askThread=new Thread(askServer);
-        askThread.start();
 
         //-------set button event---------
 
-        gohomeBtn.setOnClickListener(new View.OnClickListener()
-                                     {
+        gohomeBtn.setOnClickListener(new View.OnClickListener() {
                                          @Override
-                                         public void onClick(View v)
-                                         {
-                                             Intent recordIntent=new Intent(Search.this,HomePage.class);
-                                             startActivity(recordIntent);
+                                         public void onClick(View v) {
+                                             Search.this.finish();
                                          }
 
                                      }
         );
 
-        refreshBtn.setOnClickListener(new View.OnClickListener()
-                                      {
+        refreshBtn.setOnClickListener(new View.OnClickListener() {
                                           @Override
-                                          public void onClick(View v)
-                                          {
-
+                                          public void onClick(View v) {
+                                              new ShowParkingLotsList().execute();
                                           }
 
                                       }
         );
+
         //-------set ui----------
-        UIHr=new Handler();
+        alertProgress = new ProgressDialog(Search.this);
+        alertProgress.setMessage("Loading...\nPlease wait~~~");
+        alertProgress.setCancelable(false);
 
-    }
-    private Runnable refreshUI=new Runnable()
-    {
-        public void run()
-        {
-            String res=askServer.getResult();
-            if(res.equals("-1"))
-                resultText.setText("\nsearching...\n\n");
-            else if(res.equals("0") || res.equals("1") || res.equals("2"))
-                resultText.setText("\n�Ѿl  "+res+"  ��\n\n");
-            else
-                resultText.setText("\nno data\n\n");
-        }
+        list = new ArrayList<HashMap<String, String>>();
+        listview = (ListView) this.findViewById(R.id.listView);
+        adapter = new SimpleAdapter(this, list, R.layout.parking_lots_list, new String[]{"address", "number", "distance"}, new int[]{R.id.address_tv, R.id.num_tv, R.id.distance_tv});
+        listview.setAdapter(adapter);
+        listview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
-    };
-
-
-    class AskServer implements Runnable
-    {
-        Socket socket;
-        OutputStream out;
-        InputStream in;
-        byte[] strb = new byte[200];
-        int result=-1;
-        @Override
-        public void run() {
-            // TODO Auto-generated method stub
-            try {
-                Log.v(TAG, "connect to server...");
-                socket=new Socket("140.116.246.200",4000+id);
-                out=socket.getOutputStream();
-                in=socket.getInputStream();
-                Log.v(TAG,"connect!!");
-
-                sendData("ask#");
-                UIHr.post(refreshUI);
-                result=new Integer(readData());
-                UIHr.post(refreshUI);
-                sendData("over#");
-                socket.close();
-            } catch (UnknownHostException e) {e.printStackTrace();}
-            catch (IOException e) {e.printStackTrace();}
-        }
-        private void sendData(String s)
-        {
-            Log.v(TAG,"send "+s);
-            Arrays.fill(strb, (byte) 0);
-            System.arraycopy(s.getBytes(), 0, strb, 0, s.length());
-            try
-            {
-                if(out!=null)
-                {
-                    out.write(strb);
-                    out.flush();
-                }
-            } catch (IOException e1) {}
-        }
-        private String readData()
-        {
-            Log.v(TAG,"connect!!");
-            String s = "";
-            String[] splits = null;
-            Arrays.fill(strb, (byte)0);
-            try
-            {
-                if(in!=null)
-                {
-                    int count=0;
-                    while(in.available()==0 && count<100)
-                    {
-                        UIHr.post(refreshUI);
-                        Thread.sleep(100);
-                        count++;
-                    }
-                    if(count>50)
-                    {
-                        return new Integer(9999).toString();
-                    }
-
-                    Log.v(TAG,"read start");
-                    in.read(strb);
-                    Log.v(TAG,"read end");
-
-                }
-                s=new String(strb);
-                splits=s.split("#");
-                Log.v(TAG,"get "+splits[0]);
-
-            } catch (IOException e1) {} catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                Intent it = new Intent(Search.this, GoogleMap.class);
+                it.putExtra("GPS", list.get(position).get("gps"));
+                it.putExtra("describe", list.get(position).get("address") + " " + list.get(position).get("number") + "個車位");
+                Log.w("in search ", list.get(position).get("gps"));
+                startActivity(it);
             }
-            return splits[0];
-        }
-        private String getResult()
-        {
-            return new Integer(result).toString();
-        }
+        });
     }
 
-    /**
-     * A placeholder fragment containing a simple view.
-     */
-    public static class PlaceholderFragment extends Fragment {
-
-        public PlaceholderFragment() {
-        }
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_search,
-                    container, false);
-            return rootView;
-        }
-    }
     @Override
-    protected void onPause()
-    {
-        super.onPause();
-        Log.v(TAG,"SearchOnPause");
-    }
-    @Override
-    protected void onStop()
-    {
-        super.onStop();
-        Log.v(TAG,"SearchOnStop");
-        android.os.Process.killProcess(android.os.Process.myPid());
-        onDestroy();
-    }
-    protected void onDestroy(Bundle savedInstanceState)
-    {
-        Log.v(TAG,"SearchOnDestroy");
+    protected void onResume() {
+        super.onResume();
 
-        super.onDestroy();
-        android.os.Process.killProcess(android.os.Process.myPid());
+        LocationManager status = (LocationManager) (this.getSystemService(Context.LOCATION_SERVICE));
+        if (status.isProviderEnabled(LocationManager.GPS_PROVIDER) || status.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            //如果GPS或網路定位開啟，呼叫locationServiceInitial()更新位置
+            locationServiceInitial();
+        } else {
+            Toast.makeText(this, "請開啟定位服務", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));	//開啟設定頁面
+        }
+        list.clear();
+        new ShowParkingLotsList().execute();
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -236,5 +138,86 @@ public class Search extends ActionBarActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+
+    private class ShowParkingLotsList extends AsyncTask<Void, Integer, Long> {
+
+        @Override
+        protected void onPreExecute() {
+            alertProgress.show();
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... progress) {
+            adapter.notifyDataSetChanged();
+        }
+
+        @Override
+        protected Long doInBackground(Void... voids) {
+            String tag_json_obj = "json_obj_req";
+            String url = "http://140.116.245.252:8080/api/searchSpace";
+
+            ArrayList<BasicNameValuePair> params = new ArrayList();
+            params.add(new BasicNameValuePair("GPSlat", GPSlat));
+            params.add(new BasicNameValuePair("GPSlng", GPSlng));
+            PostParameterJsonObjectRequest jsonObjReq = new PostParameterJsonObjectRequest(Request.Method.POST, url , params, new Response.Listener<JSONObject>() {
+
+                @Override
+                public void onResponse(JSONObject response) {
+                    Log.d(TAG, response.toString());
+
+                    try {
+                        JSONObject result = response.getJSONObject("result");
+                        Log.d(TAG, result.toString());
+                        Iterator<String> iter = result.keys();
+
+                        while (iter.hasNext()) {
+                            String address = iter.next();
+                            JSONObject data = result.getJSONObject(address);
+                            String number = data.getString("count");
+                            String distance = data.getString("dis");
+                            String gps = data.getString("GPSlat") + "," + data.getString("GPSlng");
+
+                            HashMap<String, String> item = new HashMap<String, String>();
+                            item.put("address", address);
+                            item.put("number", number);
+                            item.put("distance", distance);
+                            item.put("gps", gps);
+                            list.add(item);
+                        }
+
+                    } catch (JSONException e) {
+                        // Something went wrong!
+                    }
+                    adapter.notifyDataSetChanged();
+                }
+            }, new Response.ErrorListener() {
+
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    VolleyLog.d(TAG, "Error: " + error.getMessage());
+                }
+            });
+
+            // Adding request to request queue
+            AppController.getInstance().addToRequestQueue(jsonObjReq, tag_json_obj);
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Long result) {
+            alertProgress.dismiss();
+        }
+    }
+
+
+    private void locationServiceInitial() {
+        lm = (LocationManager) getSystemService(LOCATION_SERVICE);	//取得系統定位服務
+        String bestProvider = lm.getBestProvider(new Criteria(), true);
+        Location location = lm.getLastKnownLocation(bestProvider);	//使用GPS定位座標
+        GPSlng = String.valueOf(location.getLongitude())+"";
+        GPSlat = String.valueOf(location.getLatitude())+"";
     }
 }

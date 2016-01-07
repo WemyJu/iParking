@@ -3,10 +3,13 @@ package com.bubble_gray.iparkingapp;
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
+import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.provider.Settings;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -16,6 +19,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,9 +32,7 @@ import java.util.Arrays;
 public class HomePage extends ActionBarActivity {
     private final static String TAG="HelloWorld";
     private ImageButton recordBtn,searchBtn,helpBtn;
-    private Thread registerThread;
-    private DBAdapter myDB;
-    private int id=0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -47,9 +49,10 @@ public class HomePage extends ActionBarActivity {
         super.onResume();
 
         ConnectivityManager conMgr = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        LocationManager status = (LocationManager) (this.getSystemService(Context.LOCATION_SERVICE));
         /* already connected to Internet */
-        if ( conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.CONNECTED
-                || conMgr.getNetworkInfo(1).getState() == NetworkInfo.State.CONNECTED ) {
+        if (( conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.CONNECTED
+                || conMgr.getNetworkInfo(1).getState() == NetworkInfo.State.CONNECTED) &&  (status.isProviderEnabled(LocationManager.GPS_PROVIDER) || status.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) ){
             //-------set button event---------
             recordBtn.setOnClickListener(new View.OnClickListener()
                                          {
@@ -57,9 +60,6 @@ public class HomePage extends ActionBarActivity {
                                              public void onClick(View v)
                                              {
                                                  Intent recordIntent=new Intent(HomePage.this,Record.class);
-                                                 Bundle bundle = new Bundle();
-                                                 bundle.putInt("ID",id);
-                                                 recordIntent.putExtras(bundle);
                                                  startActivity(recordIntent);
                                              }
 
@@ -72,15 +72,11 @@ public class HomePage extends ActionBarActivity {
                                              public void onClick(View v)
                                              {
                                                  Intent searchIntent=new Intent(HomePage.this, Search.class);
-                                                 Bundle bundle = new Bundle();
-                                                 bundle.putInt("ID",id);
-                                                 searchIntent.putExtras(bundle); //�N�ѼƩ�J
                                                  startActivity(searchIntent);
                                              }
 
                                          }
             );
-            myDB=new DBAdapter(this);
             helpBtn.setOnClickListener(new View.OnClickListener(){
                                            @Override
                                            public void onClick(View v)
@@ -96,119 +92,43 @@ public class HomePage extends ActionBarActivity {
                                        }
             );
 
-          //  Register register=new Register();
-          //  registerThread=new Thread(register);
-          //  registerThread.start();
-        }
+        }else {
         /* not connected to Internet */
-        else if ( conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.DISCONNECTED
-                || conMgr.getNetworkInfo(1).getState() == NetworkInfo.State.DISCONNECTED) {
-            AlertDialog.Builder bdr = new AlertDialog.Builder(this);
-            bdr.setMessage("Please connect to Internet.")
-                    .setTitle("Need setting")
-                    .setIcon(android.R.drawable.ic_menu_info_details)
-                    .setCancelable(true)
-                    .setPositiveButton("Confirm", null)
-                    .show();
-        }
-    }
+            if (conMgr.getNetworkInfo(0).getState() == NetworkInfo.State.DISCONNECTED
+                    || conMgr.getNetworkInfo(1).getState() == NetworkInfo.State.DISCONNECTED) {
+                AlertDialog.Builder bdr = new AlertDialog.Builder(this);
+                bdr.setMessage("Please connect to Internet.")
+                        .setTitle("Warning")
+                        .setIcon(android.R.drawable.ic_menu_info_details)
+                        .setCancelable(true)
+                        .setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+                                dialog.dismiss();
+                            }
+                        })
+                        .show();
 
-    public class Register implements Runnable
-    {
-        Socket socket;
-        OutputStream out;
-        InputStream in;
-        byte[] strb = new byte[200];
-
-        @Override
-        public void run()
-        {
-            try
-            {
-                socket=new Socket("140.116.246.200",9000);
-                out=socket.getOutputStream();
-                in=socket.getInputStream();
             }
-            catch (UnknownHostException e) {}
-            catch (IOException e) {}
-            try {
-                idConfirm();
-            } catch (IOException e) {e.printStackTrace();}
-        }
-        private void idConfirm() throws IOException
-        {
-            Log.v(TAG, "id confirm");
-            myDB.open();
-            Cursor cur=myDB.getMyId();
-            String msg;
-            //-----old user-----
-            if(cur.moveToFirst())
-            {
-                id=cur.getInt(1);
-                msg="who#"+id+"#";
-                sendData(msg);
-                Log.v(TAG,msg);
+            if(!status.isProviderEnabled(LocationManager.GPS_PROVIDER)){
+                AlertDialog.Builder bdr = new AlertDialog.Builder(this);
+                bdr.setMessage("Please turn on GPS service.")
+                        .setTitle("Warning")
+                        .setIcon(android.R.drawable.ic_menu_info_details)
+                        .setCancelable(true)
+                        .setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                                dialog.dismiss();
+                            }
+                        })
+                        .show();
 
-            }//-----new user-----
-            else
-            {
-                sendData("new#");
-                msg=readData();
-                id=Integer.parseInt(msg);
-                myDB.insertID(id);
             }
-            cur.close();
-            myDB.close();
-            socket.close();
         }
-        private void sendData(String s)
-        {
-            Log.v(TAG,"send "+s);
-            Arrays.fill(strb, (byte) 0);
-            System.arraycopy(s.getBytes(), 0, strb, 0, s.length());
-            try
-            {
-                if(out!=null)
-                {
-                    out.write(strb);
-                    out.flush();
-                }
-            } catch (IOException e1) {}
-        }
-        private String readData()
-        {
-            String s = "";
-            String[] splits = null;
-            Arrays.fill(strb, (byte)0);
-            try
-            {
-                if(in!=null)
-                    in.read(strb);
 
-                s=new String(strb);
-                splits=s.split("#");
-
-            } catch (IOException e1) {}
-            return splits[0];
-        }
     }
 
-    /**
-     * A placeholder fragment containing a simple view.
-     */
-    public static class PlaceholderFragment extends Fragment {
-
-        public PlaceholderFragment() {
-        }
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_home, container,
-                    false);
-            return rootView;
-        }
-    }
     @Override
     protected void onPause()
     {

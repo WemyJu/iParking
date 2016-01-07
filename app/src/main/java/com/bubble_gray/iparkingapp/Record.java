@@ -1,16 +1,8 @@
 package com.bubble_gray.iparkingapp;
 
-import android.app.Activity;
 import android.app.Fragment;
-import android.content.ClipData;
-import android.content.ContentResolver;
-import android.content.ContentValues;
-import android.content.Context;
-import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.location.Address;
@@ -21,15 +13,11 @@ import android.location.LocationManager;
 import android.location.LocationListener;
 import android.media.MediaMetadataRetriever;
 import android.media.MediaRecorder;
-import android.net.Uri;
-import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.provider.MediaStore;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -39,27 +27,28 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.TextView;
 
-import java.io.BufferedOutputStream;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.VolleyLog;
+
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONObject;
+
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.net.ContentHandler;
-import java.net.Socket;
-import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Timer;
+
+import HttpRequest.AppController;
+import HttpRequest.PostParameterJsonObjectRequest;
 
 public class Record extends ActionBarActivity implements LocationListener, SurfaceHolder.Callback{
 
@@ -67,7 +56,7 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
     //--------debug---------
     private final static String TAG="HelloWorld";
     Message msg =new Message();
-    String errMsg;
+    String errMsg, GPSlat, GPSlng;
     private int id;
     //--------gps---------
     LocationManager lm;
@@ -76,7 +65,6 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
     GPSCollector gpsCollector;
     boolean isLocationChange;
     SimpleDateFormat dateFormat;
-    private Socket gpsSocket;
     static String fileName;
     //--------camera---------
     CamaraRecorder cameraRecorder;
@@ -102,17 +90,13 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
 
 
 
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.v(TAG, "onCreate");
         //----choose UI-----
         setContentView(R.layout.activity_record);
-        Intent intent = this.getIntent();
-        Bundle bundle = intent.getExtras();//��oBundle
-        id = bundle.getInt("ID");            //��XBundle���e
+
         //----Connect object and UI-----
         //stopRec = (Button) findViewById(R.id.stop_btn);
         gpsTv = (TextView) findViewById(R.id.now_gps);
@@ -227,7 +211,6 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
 
         recThread.start();
 /*
-
         //===== for record a video=========
         mediaRecorder = new MediaRecorder();
         mediaRecorder.setCamera(camera);
@@ -244,14 +227,12 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         }
         catch (IOException e)
         {}
-
 */
         /* ========== here is 104's version
         recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         recorder.setOutputFile(path);
         recorder.setOrientationHint(0);
-
         recorder.setVideoSize(1920,1080);	//1080p
         recorder.setVideoEncodingBitRate(1000*1024);	//8000 kbps
         // �]�w�w���
@@ -333,7 +314,6 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         {
             gpsTv.setText(beSearched.getInput());
         }
-
     };*/
     private Runnable recorderUI=new Runnable()
     {
@@ -479,8 +459,8 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
                     //Log.v("GPS: ", gpsLoc);
                     //GpsHr.post(refreshUI);
                     //Date current = new Date();
-                   // str="gps#"+gpsLoc+"#"+dateFormat.format(current)+"#"+fileName+"#";
-                   // sendData(str);
+                    // str="gps#"+gpsLoc+"#"+dateFormat.format(current)+"#"+fileName+"#";
+                    // sendData(str);
                     //isLocationChange=false;
                     //----wait 5 second----
                     /*try {	Thread.sleep(3000);	}
@@ -499,6 +479,8 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         isLocationChange = true;
         String gpsLoc = String.format("%.6f,%.6f", location.getLongitude(), location.getLatitude());
         Log.v("GPS: ", gpsLoc);
+        GPSlng = location.getLongitude()+"";
+        GPSlat = location.getLatitude()+"";
         gpsTv.setText("(" +  location.getLongitude() + ", " + location.getLatitude() + ")");
         String addr = "";
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
@@ -512,6 +494,31 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
 
         }
         Log.v("address:", addr);
+
+
+
+        String tag_json_obj = "json_obj_req";
+        String url = "http://140.116.245.252:8080/api/addGPS";
+
+        ArrayList<BasicNameValuePair> params = new ArrayList();
+        params.add(new BasicNameValuePair("GPSlat", GPSlat));
+        params.add(new BasicNameValuePair("GPSlng", GPSlng));
+        PostParameterJsonObjectRequest jsonObjReq = new PostParameterJsonObjectRequest(Request.Method.POST, url , params, new Response.Listener<JSONObject>() {
+
+            @Override
+            public void onResponse(JSONObject response) {
+                Log.d(TAG, response.toString());
+            }
+        }, new Response.ErrorListener() {
+
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                VolleyLog.d(TAG, "Error: " + error.getMessage());
+            }
+        });
+
+        // Adding request to request queue
+        AppController.getInstance().addToRequestQueue(jsonObjReq, tag_json_obj);
     }
 
 
@@ -543,13 +550,11 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
             recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
             recorder.setOutputFile(path);
             recorder.setOrientationHint(0);
-
             recorder.setVideoSize(1920,1080);	//1080p
             recorder.setVideoEncodingBitRate(1000*1024);	//8000 kbps
             // �]�w�w���
             recorder.setPreviewDisplay(cameraView.getHolder().getSurface());
             Log.v("camera", "pass cameraView");
-
             try
             {
                 recorder.prepare();
@@ -568,7 +573,6 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
     //======be searched==========
     class BeSearched implements Runnable
     {
-
         String str;
         InputStream inSearch;
         OutputStream outSearch;
@@ -586,7 +590,6 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
                 // TODO Auto-generated catch block
                 e1.printStackTrace();
             }
-
             while(true)
             {
                 try {
@@ -601,10 +604,8 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
                     //searchVideo("20150106070241","2");
                     //VideoHr.post(videoUI);
                     //Thread.sleep(1000);
-
                     sendPic(cutData[2]);
                     //send back
-
                 } catch (UnknownHostException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -615,12 +616,10 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
                 }
             }
         }
-
         public String getInput()
         {
             return str;
         }
-
         public void searchVideo(String fn,String secStr) throws InterruptedException
         {
             Log.v(TAG,fn+" "+secStr);
@@ -643,10 +642,7 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
                 fos.close();
                 Log.v(TAG,"video capture done");
             } catch (Exception e) { e.printStackTrace(); }
-
-
         }
-
         public void sendPic(String port) throws IOException
         {
             int spotNum=new Integer(port);
@@ -659,20 +655,16 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
             ObjectOutputStream outObj=new ObjectOutputStream(picSoc.getOutputStream());
             outObj.writeObject (data);
             picSoc.getOutputStream().flush();
-
 			/*
 			byte[] pic=new byte[200000];
-
 			FileInputStream inputStream=new FileInputStream(tmpPath);
 			int fileSize=new Integer(inputStream.available());
 			Log.v(TAG,"#"+new Integer(inputStream.available()).toString());
 			outSearch.write((new Integer(inputStream.available()).toString()+"#").getBytes());
 			outSearch.flush();
-
 			inputStream.read(pic);
 			Log.v(TAG,"##"+new Integer(inputStream.available()).toString());
 			Log.v(TAG,"read from file");
-
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
@@ -682,26 +674,26 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
 			outSearch.write(pic,0,fileSize);
 			outSearch.flush();*/
 
-            ///inputStream.close();
-            ///Log.v(TAG,"send over");
-       // }
-       /// public String getLatestFile()
-       /// {
-          ///  String[] filenames;
-           /// String latest="";
-           /// File dir=new File("storage/emulated/0/DCIM/100MEDIA");
-           /// filenames=dir.list();
-          ////  for(int i=filenames.length-1;i>=0;--i)
-          ///  {
-         ///       if(filenames[i].substring(0, 3).equals("Car"))
-            ///    {
-               ///     Log.v(TAG,filenames[i]);
-                  ///  latest=filenames[i];
-                  ///  break;
-     ///           }
-        ///    }
+    ///inputStream.close();
+    ///Log.v(TAG,"send over");
+    // }
+    /// public String getLatestFile()
+    /// {
+    ///  String[] filenames;
+    /// String latest="";
+    /// File dir=new File("storage/emulated/0/DCIM/100MEDIA");
+    /// filenames=dir.list();
+    ////  for(int i=filenames.length-1;i>=0;--i)
+    ///  {
+    ///       if(filenames[i].substring(0, 3).equals("Car"))
+    ///    {
+    ///     Log.v(TAG,filenames[i]);
+    ///  latest=filenames[i];
+    ///  break;
+    ///           }
+    ///    }
     ///        return "storage/emulated/0/DCIM/100MEDIA/"+latest;
-     ///   }
+    ///   }
 		/*
 		class DataSet implements java.io.Serializable
 		{
@@ -733,21 +725,6 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
         recThread.interrupt();
         super.onPause();
         stop_camera();
-    }
-
-    @Override
-    protected void onStop()
-    {
-        super.onStop();
-
-        android.os.Process.killProcess(android.os.Process.myPid());
-    }
-
-    @Override
-    protected void onDestroy()
-    {
-        super.onDestroy();
-        android.os.Process.killProcess(android.os.Process.myPid());
     }
 
 
@@ -808,30 +785,30 @@ public class Record extends ActionBarActivity implements LocationListener, Surfa
 
 
     private Camera.PictureCallback jpegCallback = new Camera.PictureCallback(){
-                public void onPictureTaken(byte[] data, Camera camera) {
-                    Bitmap bmp=BitmapFactory.decodeByteArray(data, 0, data.length);
-                    //byte數组轉換成Bitmap
-                    //imageView1.setImageBitmap(bmp);
-                    //拍下圖片顯示在下面的ImageView裡
+        public void onPictureTaken(byte[] data, Camera camera) {
+            Bitmap bmp=BitmapFactory.decodeByteArray(data, 0, data.length);
+            //byte數组轉換成Bitmap
+            //imageView1.setImageBitmap(bmp);
+            //拍下圖片顯示在下面的ImageView裡
 
-                    FileOutputStream fop;
-                    try {
-                        String pathStr = createFilePath();
-                        fop = new FileOutputStream(pathStr); //實例化FileOutputStream，參數是生成路徑
-                        bmp.compress(Bitmap.CompressFormat.JPEG, 100, fop);
-                        //壓缩bitmap寫進outputStream 參數：輸出格式  輸出質量  目標OutputStream
-                        //格式可以為jpg,png,jpg不能存儲透明
+            FileOutputStream fop;
+            try {
+                String pathStr = createFilePath();
+                fop = new FileOutputStream(pathStr); //實例化FileOutputStream，參數是生成路徑
+                bmp.compress(Bitmap.CompressFormat.JPEG, 100, fop);
+                //壓缩bitmap寫進outputStream 參數：輸出格式  輸出質量  目標OutputStream
+                //格式可以為jpg,png,jpg不能存儲透明
 
-                        fop.flush();
-                        fop.close();
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                        System.out.println("FileNotFoundException");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        System.out.println("IOException");
-                    }
-                    camera.startPreview(); //需要手動重新startPreview，否則停在拍下的瞬間
-                }
+                fop.flush();
+                fop.close();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                System.out.println("FileNotFoundException");
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.out.println("IOException");
+            }
+            camera.startPreview(); //需要手動重新startPreview，否則停在拍下的瞬間
+        }
     };
 }

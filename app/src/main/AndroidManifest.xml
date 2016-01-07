@@ -4,13 +4,14 @@
 
     <!-- Camara -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />
 
     <!-- Stroage (SD card) -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"/>
+    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />
 
     <!-- GPS -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -27,7 +28,12 @@
     <!-- Socket網路權限 -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- FOR GOOGLE MAP -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
+
     <application
+        android:name="HttpRequest.AppController"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
@@ -55,6 +61,25 @@
             android:name=".Instruction"
             android:label="@string/title_activity_instruction" >
         </activity>
+        <activity
+            android:name=".GoogleMap"
+            android:label="@string/title_activity_google_map" >
+        </activity>
+        <activity
+            android:name=".ParkingLotsListActivity"
+            android:label="@string/title_activity_parking_lots_list" >
+        </activity>
+
+        <!-- for Google Maps-->
+        <meta-data
+            android:name="com.google.android.maps.v2.API_KEY"
+            android:value="AIzaSyBfe19Od_MsOKCDpJ5Za0kqRR7xMye633o" />
+
+        <!-- which version to use-->
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
     </application>
 
 </manifest>

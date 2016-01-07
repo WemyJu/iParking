@@ -7,5 +7,7 @@
     <string name="title_activity_record">Record</string>
     <string name="title_activity_search">Search</string>
     <string name="title_activity_instruction">Instruction</string>
+    <string name="title_activity_google_map">GoogleMap</string>
+    <string name="title_activity_parking_lots_list">ParkingLotsListActivity</string>
 
 </resources>

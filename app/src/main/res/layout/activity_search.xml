@@ -10,7 +10,7 @@
         android:layout_height="fill_parent"
         android:stretchColumns="1">
 
-        <TableRow>
+        <TableRow android:layout_weight="0.5">
 
             <TextView
                 android:id="@+id/search_result"
@@ -21,32 +21,35 @@
                 />
 
         </TableRow>
-        <TableRow android:gravity="center">
+        <TableRow android:gravity="center"
+            android:layout_weight="30">
 
-            <TextView
-                android:id="@+id/search_result_Text"
+            <ListView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="\n剩餘  2  位\n\n"
-                android:textSize="44sp"
-                />
-
+                android:id="@+id/listView" />
         </TableRow>
-        <TableRow android:gravity="center">
+        <TableRow android:gravity="center"
+            android:layout_weight="0.5"
+            android:layout_marginBottom="5dp">
 
             <ImageButton
                 android:id="@+id/search_gohome"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/search_gohome" />
+                android:src="@drawable/search_gohome"
+                android:background="#EEE4B0" />
 
         </TableRow>
-        <TableRow android:gravity="center">
+        <TableRow android:gravity="center"
+            android:layout_weight="0.5"
+            android:layout_marginBottom="10dp">
             <ImageButton
                 android:id="@+id/search_refresh"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:src="@drawable/search_refresh" />
+                android:src="@drawable/search_refresh"
+                android:background="#EEE4B0" />
         </TableRow>
 
 

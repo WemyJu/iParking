@@ -47,8 +47,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-import HttpRequest.AppController;
-import HttpRequest.PostParameterJsonObjectRequest;
+import http_request.AppController;
+import http_request.PostParameterJsonObjectRequest;
 
 public class Record extends ActionBarActivity implements LocationListener, SurfaceHolder.Callback{
 

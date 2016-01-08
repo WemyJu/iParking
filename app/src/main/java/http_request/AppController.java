@@ -1,4 +1,4 @@
-package HttpRequest;
+package http_request;
 
 import android.app.Application;
 import android.text.TextUtils;

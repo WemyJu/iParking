@@ -33,8 +33,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
-import HttpRequest.AppController;
-import HttpRequest.PostParameterJsonObjectRequest;
+import http_request.AppController;
+import http_request.PostParameterJsonObjectRequest;
 
 
 public class Search extends ActionBarActivity{
